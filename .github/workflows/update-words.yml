@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   update-words:
@@ -42,6 +43,28 @@ jobs:
           MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
         run: node scripts/auto-update/generate-words-ai.js
 
+      - name: Extract new words for PR
+        id: extract_words
+        run: |
+          if [ -f .context/generated-words.json ]; then
+            WORDS=$(node --input-type=module -e "
+              import fs from 'fs';
+              const data = JSON.parse(fs.readFileSync('.context/generated-words.json', 'utf-8'));
+              const words = data.words || [];
+              console.log(words.map(w => w.text).join(', '));
+            ")
+            COUNT=$(node --input-type=module -e "
+              import fs from 'fs';
+              const data = JSON.parse(fs.readFileSync('.context/generated-words.json', 'utf-8'));
+              console.log((data.words || []).length);
+            ")
+            echo "words=$WORDS" >> $GITHUB_OUTPUT
+            echo "count=$COUNT" >> $GITHUB_OUTPUT
+          else
+            echo "words=" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+          fi
+
       - name: Merge new words
         run: node scripts/auto-update/merge-words.js
 
@@ -54,15 +77,41 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Commit and push changes
+      - name: Create Pull Request
         if: steps.check_changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          BRANCH_NAME="auto-update/words-$(date +%Y%m%d-%H%M%S)"
+          WORDS="${{ steps.extract_words.outputs.words }}"
+          COUNT="${{ steps.extract_words.outputs.count }}"
+          DATE=$(date +%Y-%m-%d)
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$BRANCH_NAME"
           git add src/data/words.json
-          git commit -m "chore: auto-update word collection
+          git commit -m "chore: add ${COUNT} new words (${WORDS})"
+          git push origin "$BRANCH_NAME"
 
-          Automatically generated new words using AI.
+          # Create PR with words in title if few, otherwise in body
+          if [ "$COUNT" -le 5 ]; then
+            PR_TITLE="chore: add words - ${WORDS}"
+          else
+            PR_TITLE="chore: add ${COUNT} new words (${DATE})"
+          fi
 
-          Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-          git push
+          gh pr create \
+            --title "$PR_TITLE" \
+            --body "## 追加ワード
+
+${WORDS}
+
+---
+🤖 Generated automatically by GitHub Actions" \
+            --base main \
+            --head "$BRANCH_NAME"
+
+          # Auto-merge the PR
+          gh pr merge "$BRANCH_NAME" --auto --squash
