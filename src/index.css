@@ -1,0 +1,232 @@
+/* 2000年代インターネット風レトロスタイル */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "MS PGothic", "MS Gothic", "Meiryo", monospace;
+  background-color: #EFEFEF;
+  color: #000000;
+  min-height: 100vh;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* レトロなリンク色 */
+a {
+  color: #0000FF;
+}
+
+a:visited {
+  color: #800080;
+}
+
+a:hover {
+  color: #FF0000;
+}
+
+/* Windows XP風ベベルボタン */
+.retro-button {
+  background: #D4D0C8;
+  border: 2px solid;
+  border-color: #FFFFFF #404040 #404040 #FFFFFF;
+  padding: 8px 24px;
+  font-family: "MS PGothic", "MS Gothic", monospace;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+}
+
+.retro-button:active {
+  border-color: #404040 #FFFFFF #FFFFFF #404040;
+}
+
+.retro-button:hover {
+  background: #E8E4DC;
+}
+
+/* レトロなボックス */
+.retro-box {
+  background: #FFFFFF;
+  border: 2px solid;
+  border-color: #808080 #FFFFFF #FFFFFF #808080;
+  padding: 16px;
+  box-shadow: inset 1px 1px 0 #DFDFDF;
+}
+
+.retro-box-inset {
+  background: #FFFFFF;
+  border: 2px solid;
+  border-color: #404040 #FFFFFF #FFFFFF #404040;
+  padding: 16px;
+}
+
+/* 点滅アニメーション (blink風) */
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.blink {
+  animation: blink 1s step-start infinite;
+}
+
+/* marquee風スクロール */
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.marquee-content {
+  display: inline-block;
+  animation: marquee 10s linear infinite;
+}
+
+/* メインコンテナ（固定幅・センタリング） */
+.container {
+  width: 800px;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* タイトル画面 */
+.title-screen {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.title-aa {
+  font-family: "MS Gothic", monospace;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: pre;
+  margin-bottom: 30px;
+}
+
+/* ゲーム画面 */
+.game-screen {
+  text-align: center;
+  padding: 20px;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: linear-gradient(to bottom, #6699CC, #336699);
+  color: #FFFFFF;
+  font-weight: bold;
+}
+
+.word-display {
+  font-size: 32px;
+  margin: 40px 0 20px;
+  padding: 20px;
+  background: #FFFFFF;
+  border: 3px solid #000000;
+}
+
+.word-kana {
+  font-size: 18px;
+  color: #666666;
+  margin-top: 10px;
+}
+
+.romaji-guide {
+  font-size: 24px;
+  letter-spacing: 2px;
+  margin: 20px 0;
+  font-family: monospace;
+}
+
+.romaji-typed {
+  color: #FF0000;
+}
+
+.romaji-remaining {
+  color: #666666;
+}
+
+/* リザルト画面 */
+.result-screen {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.result-score {
+  font-size: 48px;
+  color: #FF0000;
+  margin: 20px 0;
+}
+
+.result-rank {
+  font-size: 36px;
+  color: #0000FF;
+  margin: 20px 0;
+  padding: 10px;
+  border: 3px double #0000FF;
+  display: inline-block;
+}
+
+.result-stats {
+  margin: 20px 0;
+  font-size: 16px;
+}
+
+/* 2ちゃんねる風装飾 */
+.separator {
+  border: none;
+  border-top: 1px dashed #808080;
+  margin: 20px 0;
+}
+
+/* エラー表示 */
+.error-flash {
+  animation: error-shake 0.1s;
+}
+
+@keyframes error-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* 音量ボタン */
+.volume-toggle {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: #D4D0C8;
+  border: 2px solid;
+  border-color: #FFFFFF #404040 #404040 #FFFFFF;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* 説明文（desc）表示 */
+.word-desc {
+  font-size: 14px;
+  color: #006600;
+  margin-top: 15px;
+  padding: 10px;
+  background: #FFFFCC;
+  border: 1px solid #CCCC00;
+}
