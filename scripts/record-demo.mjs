@@ -7,12 +7,30 @@ import { existsSync, mkdirSync, unlinkSync } from 'fs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '..');
 const docsDir = join(projectRoot, 'docs');
-const videoPath = join(docsDir, 'demo.webm');
 const gifPath = join(docsDir, 'demo.gif');
 
 // docs ディレクトリを作成
 if (!existsSync(docsDir)) {
   mkdirSync(docsDir, { recursive: true });
+}
+
+// ローマ字ガイドから残りの文字を取得してタイプする
+async function typeWord(page, addError = false) {
+  const remaining = await page.$eval('.romaji-remaining', el => el.textContent || '');
+  if (!remaining) return false;
+
+  console.log(`  Typing: ${remaining}`);
+
+  for (let i = 0; i < remaining.length; i++) {
+    // 途中でミスを入れる
+    if (addError && i === 2) {
+      await page.keyboard.press('x'); // 間違いキー
+      await page.waitForTimeout(150);
+    }
+    await page.keyboard.press(remaining[i]);
+    await page.waitForTimeout(100);
+  }
+  return true;
 }
 
 async function recordDemo() {
@@ -24,21 +42,27 @@ async function recordDemo() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
+  let serverUrl = 'http://localhost:5173/wktk/';
+
   // サーバーが起動するまで待機
   await new Promise((resolve) => {
     devServer.stdout.on('data', (data) => {
       const output = data.toString();
       console.log(output);
-      if (output.includes('Local:')) {
-        setTimeout(resolve, 1000); // 少し待つ
+      // ポート番号を取得
+      const match = output.match(/Local:\s+http:\/\/localhost:(\d+)/);
+      if (match) {
+        serverUrl = `http://localhost:${match[1]}/wktk/`;
+        setTimeout(resolve, 1000);
       }
     });
   });
 
+  console.log(`Using server: ${serverUrl}`);
   console.log('Launching browser...');
 
   const browser = await chromium.launch({
-    headless: false, // 録画のためヘッドレスオフ
+    headless: false,
   });
 
   const context = await browser.newContext({
@@ -53,33 +77,38 @@ async function recordDemo() {
 
   try {
     console.log('Navigating to app...');
-    await page.goto('http://localhost:5173/wktk/');
-    await page.waitForTimeout(1000);
+    await page.goto(serverUrl);
+    await page.waitForTimeout(1500);
 
-    // 5秒を選択
-    console.log('Selecting 5 seconds...');
-    await page.click('button:has-text("5秒")');
+    // 10秒を選択
+    console.log('Selecting 10 seconds...');
+    await page.click('button:has-text("10秒")');
     await page.waitForTimeout(500);
 
     // スタートボタンをクリック
     console.log('Starting game...');
     await page.click('button:has-text("スタート")');
+    await page.waitForTimeout(800);
+
+    // 1語目：正確に入力
+    console.log('Word 1 (correct):');
+    await typeWord(page, false);
     await page.waitForTimeout(500);
 
-    // タイピング（正しい入力とミスを混ぜる）
-    console.log('Typing...');
-    const keys = ['w', 'k', 't', 'x', 'k']; // wktk + ミス(x)
-    for (const key of keys) {
-      await page.keyboard.press(key);
-      await page.waitForTimeout(200);
-    }
+    // 2語目：正確に入力
+    console.log('Word 2 (correct):');
+    await typeWord(page, false);
+    await page.waitForTimeout(500);
+
+    // 3語目：ミスを入れる
+    console.log('Word 3 (with error):');
+    await typeWord(page, true);
+    await page.waitForTimeout(500);
 
     // 結果画面まで待つ
     console.log('Waiting for result...');
-    await page.waitForTimeout(6000);
-
-    // 結果画面を少し表示
-    await page.waitForTimeout(2000);
+    await page.waitForSelector('.result-screen', { timeout: 15000 });
+    await page.waitForTimeout(2500);
 
     console.log('Recording complete!');
   } finally {
@@ -98,15 +127,12 @@ async function recordDemo() {
     const webmPath = join(docsDir, webmFile);
 
     console.log('Converting to GIF...');
-    // ffmpeg で GIF に変換（最適化済み）
     execSync(
       `ffmpeg -y -i "${webmPath}" -vf "fps=10,scale=640:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" -loop 0 "${gifPath}"`,
       { stdio: 'inherit' }
     );
 
-    // 元の webm ファイルを削除
     unlinkSync(webmPath);
-
     console.log(`\nGIF created: ${gifPath}`);
   } else {
     console.error('Video file not found!');
