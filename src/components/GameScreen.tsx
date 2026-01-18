@@ -9,6 +9,7 @@ interface GameScreenProps {
   lastKeyValid: boolean | null;
   isMuted: boolean;
   onToggleMute: () => void;
+  onAbort: () => void;
 }
 
 export function GameScreen({
@@ -20,6 +21,7 @@ export function GameScreen({
   lastKeyValid,
   isMuted,
   onToggleMute,
+  onAbort,
 }: GameScreenProps) {
   const wordDisplayRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<number | null>(null);
@@ -57,21 +59,24 @@ export function GameScreen({
           {isMuted ? '♪OFF' : '♪ON'}
         </button>
 
-        {/* 中断ヒント */}
-        <div
+        {/* 中断ボタン */}
+        <button
+          onClick={onAbort}
           style={{
             position: 'fixed',
             top: '10px',
             left: '10px',
             fontSize: '12px',
-            color: '#999',
-            background: 'rgba(255,255,255,0.8)',
-            padding: '4px 8px',
+            color: '#666',
+            background: 'rgba(255,255,255,0.9)',
+            padding: '4px 12px',
             borderRadius: '4px',
+            border: '1px solid #ccc',
+            cursor: 'pointer',
           }}
         >
-          [Esc] 中断
-        </div>
+          中断
+        </button>
 
         {/* ヘッダー */}
         <div className="game-header">

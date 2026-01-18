@@ -63,6 +63,7 @@ function App() {
           lastKeyValid={game.lastKeyValid}
           isMuted={audio.isMuted}
           onToggleMute={audio.toggleMute}
+          onAbort={game.endGame}
         />
       )}
 
