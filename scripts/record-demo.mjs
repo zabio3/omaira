@@ -14,23 +14,31 @@ if (!existsSync(docsDir)) {
   mkdirSync(docsDir, { recursive: true });
 }
 
-// ローマ字ガイドから残りの文字を取得してタイプする
-async function typeWord(page, addError = false) {
-  const remaining = await page.$eval('.romaji-remaining', el => el.textContent || '');
-  if (!remaining) return false;
+// ランダムな待機時間（人間っぽく）
+function randomDelay(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
-  console.log(`  Typing: ${remaining}`);
+// ローマ字ガイドから残りの文字を取得して1文字タイプする
+async function typeOneChar(page) {
+  try {
+    const remaining = await page.$eval('.romaji-remaining', el => el.textContent || '');
+    if (!remaining || remaining.length === 0) return null;
 
-  for (let i = 0; i < remaining.length; i++) {
-    // 途中でミスを入れる
-    if (addError && i === 2) {
-      await page.keyboard.press('x'); // 間違いキー
-      await page.waitForTimeout(150);
-    }
-    await page.keyboard.press(remaining[i]);
-    await page.waitForTimeout(100);
+    const char = remaining[0];
+    await page.keyboard.press(char);
+    return char;
+  } catch {
+    return null;
   }
-  return true;
+}
+
+// ミスタイプ
+async function typeMistake(page) {
+  const wrongKeys = ['x', 'z', 'q', 'v'];
+  const key = wrongKeys[Math.floor(Math.random() * wrongKeys.length)];
+  await page.keyboard.press(key);
+  return key;
 }
 
 async function recordDemo() {
@@ -80,34 +88,76 @@ async function recordDemo() {
     await page.goto(serverUrl);
     await page.waitForTimeout(1500);
 
-    // 10秒を選択
-    console.log('Selecting 10 seconds...');
-    await page.click('button:has-text("10秒")');
+    // 5秒を選択
+    console.log('Selecting 5 seconds...');
+    await page.click('button:has-text("5秒")');
     await page.waitForTimeout(500);
 
     // スタートボタンをクリック
     console.log('Starting game...');
     await page.click('button:has-text("スタート")');
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(300);
 
-    // 1語目：正確に入力
-    console.log('Word 1 (correct):');
-    await typeWord(page, false);
-    await page.waitForTimeout(500);
+    // 人間っぽく入力し続ける（結果画面が出るまで、最大30秒）
+    console.log('Typing like a human...');
+    let charCount = 0;
+    let wordCount = 0;
+    let mistakeCount = 0;
+    const startTime = Date.now();
+    const maxDuration = 15000; // 15秒
 
-    // 2語目：正確に入力
-    console.log('Word 2 (correct):');
-    await typeWord(page, false);
-    await page.waitForTimeout(500);
+    while (true) {
+      // 30秒経過したらEscで終了
+      if (Date.now() - startTime > maxDuration) {
+        console.log('\n30s timeout - pressing Escape...');
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(500);
+        break;
+      }
 
-    // 3語目：ミスを入れる
-    console.log('Word 3 (with error):');
-    await typeWord(page, true);
-    await page.waitForTimeout(500);
+      // 結果画面が出たら終了
+      const isResult = await page.$('.result-screen');
+      if (isResult) break;
 
-    // 結果画面まで待つ
-    console.log('Waiting for result...');
-    await page.waitForSelector('.result-screen', { timeout: 15000 });
+      // ゲーム画面があるか確認
+      const isPlaying = await page.$('.game-screen');
+      if (!isPlaying) {
+        await page.waitForTimeout(100);
+        continue;
+      }
+
+      // たまにミスを入れる（15%の確率）
+      if (Math.random() < 0.12) {
+        const key = await typeMistake(page);
+        console.log(`[Miss: ${key}]`);
+        mistakeCount++;
+        await page.waitForTimeout(randomDelay(150, 300));
+        continue;
+      }
+
+      // 正しい文字を入力
+      const char = await typeOneChar(page);
+      if (char) {
+        charCount++;
+        process.stdout.write(char);
+
+        // 単語が完了したかチェック（remainingが空になったら次の単語）
+        try {
+          const remaining = await page.$eval('.romaji-remaining', el => el.textContent || '');
+          if (remaining.length === 0) {
+            wordCount++;
+            console.log(` (word ${wordCount} complete)`);
+          }
+        } catch {}
+      }
+
+      // 人間っぽいランダムな間隔（遅め）
+      await page.waitForTimeout(randomDelay(150, 350));
+    }
+
+    console.log(`\nTyping done: ${charCount} chars, ${wordCount} words, ${mistakeCount} mistakes`);
+
+    // 結果画面を少し表示
     await page.waitForTimeout(2500);
 
     console.log('Recording complete!');
