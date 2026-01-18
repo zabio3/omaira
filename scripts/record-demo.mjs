@@ -50,7 +50,7 @@ async function recordDemo() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  let serverUrl = 'http://localhost:5173/wktk/';
+  let serverUrl = 'http://localhost:5173/omaira/';
 
   // サーバーが起動するまで待機
   await new Promise((resolve) => {
@@ -60,7 +60,7 @@ async function recordDemo() {
       // ポート番号を取得
       const match = output.match(/Local:\s+http:\/\/localhost:(\d+)/);
       if (match) {
-        serverUrl = `http://localhost:${match[1]}/wktk/`;
+        serverUrl = `http://localhost:${match[1]}/omaira/`;
         setTimeout(resolve, 1000);
       }
     });
