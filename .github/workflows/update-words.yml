@@ -102,16 +102,9 @@ jobs:
             PR_TITLE="chore: add ${COUNT} new words (${DATE})"
           fi
 
-          PR_BODY="## 追加ワード
-
-$WORDS
-
----
-🤖 Generated automatically by GitHub Actions"
-
           gh pr create \
             --title "$PR_TITLE" \
-            --body "$PR_BODY" \
+            --body "追加ワード: $WORDS" \
             --base main \
             --head "$BRANCH_NAME"
 
