@@ -1,6 +1,6 @@
 /**
  * Generate new words using AI (GitHub Models)
- * Uses GPT-4o-mini via GitHub Models API (free: 150 requests/day)
+ * Automatically selects the best available model
  *
  * Required environment variable:
  * - GITHUB_TOKEN: GitHub token (automatically available in Actions)
@@ -14,11 +14,74 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const GITHUB_MODELS_URL = 'https://models.inference.ai.azure.com/chat/completions';
+const GITHUB_MODELS_LIST_URL = 'https://models.inference.ai.azure.com/models';
 const TRENDING_FILE = path.join(__dirname, '../../.context/trending-candidates.json');
 const OUTPUT_FILE = path.join(__dirname, '../../.context/generated-words.json');
 const WORDS_FILE = path.join(__dirname, '../../src/data/words.json');
 
-async function callGitHubModels(prompt, systemPrompt) {
+// Model preference order (higher priority first)
+// Prefers cost-effective models with good Japanese support
+const MODEL_PRIORITY = [
+  'gpt-4o-mini',      // Best balance of cost/performance
+  'gpt-4o',           // Higher quality but more expensive quota
+  'gpt-4.1-mini',     // Future models
+  'gpt-4.1',
+  'gpt-5-mini',
+  'gpt-5',
+];
+
+async function getAvailableModels(token) {
+  try {
+    const response = await fetch(GITHUB_MODELS_LIST_URL, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.warn('Failed to fetch model list, using default');
+      return null;
+    }
+
+    const models = await response.json();
+    return models;
+  } catch (error) {
+    console.warn('Error fetching models:', error.message);
+    return null;
+  }
+}
+
+function selectBestModel(availableModels) {
+  if (!availableModels || !Array.isArray(availableModels)) {
+    return 'gpt-4o-mini'; // Default fallback
+  }
+
+  // Get model IDs that support chat completion
+  const chatModels = availableModels
+    .filter(m => m.task === 'chat-completion' || m.capabilities?.includes('chat'))
+    .map(m => m.name || m.id);
+
+  // Find the highest priority model that's available
+  for (const preferred of MODEL_PRIORITY) {
+    const match = chatModels.find(m =>
+      m.toLowerCase().includes(preferred.toLowerCase())
+    );
+    if (match) {
+      return match;
+    }
+  }
+
+  // If no preferred model found, use first available OpenAI model
+  const openaiModel = chatModels.find(m => m.toLowerCase().includes('gpt'));
+  if (openaiModel) {
+    return openaiModel;
+  }
+
+  // Last resort fallback
+  return 'gpt-4o-mini';
+}
+
+async function callGitHubModels(prompt, systemPrompt, modelName) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) {
     console.error('GITHUB_TOKEN environment variable is not set');
@@ -33,7 +96,7 @@ async function callGitHubModels(prompt, systemPrompt) {
         'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: modelName,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt },
@@ -82,6 +145,17 @@ function getTrendingContext() {
 async function main() {
   console.log('Generating new words using AI...');
 
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    console.error('GITHUB_TOKEN environment variable is not set');
+    process.exit(1);
+  }
+
+  // Auto-select best available model
+  const availableModels = await getAvailableModels(token);
+  const selectedModel = selectBestModel(availableModels);
+  console.log(`Selected model: ${selectedModel}`);
+
   const existingWords = getExistingWords();
   const existingTexts = existingWords.map(w => w.text);
   const trendingContext = getTrendingContext();
@@ -115,7 +189,7 @@ ${trendingContext ? `参考情報（Web検索結果）:\n${trendingContext.slice
 
 2024年〜2025年に流行したもの、特にZ世代やSNSで使われる新しい表現を優先してください。`;
 
-  const result = await callGitHubModels(userPrompt, systemPrompt);
+  const result = await callGitHubModels(userPrompt, systemPrompt, selectedModel);
 
   if (!result) {
     console.error('Failed to generate words');
