@@ -1,0 +1,68 @@
+name: Update Word Collection
+
+on:
+  schedule:
+    # Run daily at midnight JST (15:00 UTC)
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+    # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  update-words:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create .context directory
+        run: mkdir -p .context
+
+      - name: Fetch trending words (optional)
+        if: ${{ env.BRAVE_API_KEY != '' }}
+        env:
+          BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+        run: node scripts/auto-update/fetch-trending-words.js
+        continue-on-error: true
+
+      - name: Generate words with AI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/auto-update/generate-words-ai.js
+
+      - name: Merge new words
+        run: node scripts/auto-update/merge-words.js
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if git diff --quiet src/data/words.json; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/data/words.json
+          git commit -m "chore: auto-update word collection
+
+          Automatically generated new words using AI.
+
+          Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          git push
