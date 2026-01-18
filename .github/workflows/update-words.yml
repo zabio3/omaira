@@ -39,7 +39,7 @@ jobs:
 
       - name: Generate words with AI
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODELS_TOKEN: ${{ secrets.MODELS_TOKEN }}
         run: node scripts/auto-update/generate-words-ai.js
 
       - name: Merge new words

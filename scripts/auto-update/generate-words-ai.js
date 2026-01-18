@@ -3,7 +3,7 @@
  * Automatically selects the best available model
  *
  * Required environment variable:
- * - GITHUB_TOKEN: GitHub token (automatically available in Actions)
+ * - MODELS_TOKEN: GitHub PAT with Models permission (set as repository secret)
  */
 
 import fs from 'fs';
@@ -82,9 +82,9 @@ function selectBestModel(availableModels) {
 }
 
 async function callGitHubModels(prompt, systemPrompt, modelName) {
-  const token = process.env.GITHUB_TOKEN;
+  const token = process.env.MODELS_TOKEN;
   if (!token) {
-    console.error('GITHUB_TOKEN environment variable is not set');
+    console.error('MODELS_TOKEN environment variable is not set');
     return null;
   }
 
@@ -145,9 +145,9 @@ function getTrendingContext() {
 async function main() {
   console.log('Generating new words using AI...');
 
-  const token = process.env.GITHUB_TOKEN;
+  const token = process.env.MODELS_TOKEN;
   if (!token) {
-    console.error('GITHUB_TOKEN environment variable is not set');
+    console.error('MODELS_TOKEN environment variable is not set');
     process.exit(1);
   }
 
