@@ -109,4 +109,4 @@ jobs:
             --head "$BRANCH_NAME"
 
           # Auto-merge the PR
-          gh pr merge "$BRANCH_NAME" --auto --squash
+          gh pr merge "$BRANCH_NAME" --squash --delete-branch
